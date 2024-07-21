@@ -1,0 +1,76 @@
+services:
+  prometheus:
+    image: "prom/prometheus:latest"
+    restart: always
+    container_name: prometheus
+    volumes:
+      - ${PWD}/prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - ${BKP_DIR}/prometheus:/prometheus
+      - ${PROMETHEUS_TARGETS_FILE}:/etc/prometheus/targets.yaml:ro
+      - ${PROMETHEUS_PROBE_TARGETS_FILE}:/etc/prometheus/probe_targets.yaml:ro
+      - ${PROMETHEUS_RULES_FILE}:/etc/prometheus/rules
+    user: "0"
+    networks:
+      - "monitoring-network"
+  loki:
+    image: grafana/loki
+    restart: always
+    container_name: loki
+    volumes:
+      - type: bind
+        source: ./loki.yaml
+        target: /etc/loki/local-config.yaml
+      - ${BKP_DIR}/loki:/loki
+    ports:
+      - "${PORT_LOKI}:3100"
+    command: -config.file=/etc/loki/local-config.yaml -server.grpc-max-recv-msg-size-bytes=8400000
+    user: "0"
+    networks:
+      - "monitoring-network"
+  grafana:
+    image: grafana/grafana
+    restart: always
+    container_name: grafana
+    volumes:
+      - ${BKP_DIR}/grafana_data:/var/lib/grafana
+      - ${BKP_DIR}/certs:/certs
+    ports:
+      - "${PORT_GRAFANA}:3000"
+    environment:
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      GF_LOG_FILTERS: rendering:debug
+    user: "0"
+    networks:
+      - "monitoring-network"
+    depends_on:
+      - prometheus
+
+  blackbox:
+    image: "prom/blackbox-exporter:latest"
+    container_name: blackbox
+    restart: always
+    volumes:
+      - type: bind
+        source: ./blackbox-exporter.yaml
+        target: /etc/prometheus/blackbox-exporter.yaml
+    command:
+      - "--config.file=/etc/prometheus/blackbox-exporter.yaml"
+    networks:
+      - "monitoring-network"
+
+  renderer:
+    image: grafana/grafana-image-renderer:latest
+    container_name: renderer
+    ports:
+      - 8081
+    environment:
+      ENABLE_METRICS: 'true'
+    networks:
+      - "monitoring-network"
+    depends_on:
+      - grafana
+
+networks:
+  monitoring-network:
+    external: true
