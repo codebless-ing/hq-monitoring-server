@@ -1,20 +1,21 @@
 services:
   prometheus:
     image: "prom/prometheus:latest"
-    restart: always
+    restart: unless-stopped
     container_name: prometheus
     volumes:
-      - ${PWD}/prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - ${PWD}/prometheus.yaml:/etc/prometheus/prometheus.yml
       - ${BKP_DIR}/prometheus:/prometheus
-      - ${PROMETHEUS_TARGETS_FILE}:/etc/prometheus/targets.yaml:ro
+      - ${PROMETHEUS_NODE_EXPORTER_TARGETS_FILE}:/etc/prometheus/targets_node_exporter.yaml:ro
+      - ${PROMETHEUS_CADVISOR_TARGETS_FILE}:/etc/prometheus/targets_cadvisor.yaml:ro
       - ${PROMETHEUS_PROBE_TARGETS_FILE}:/etc/prometheus/probe_targets.yaml:ro
       - ${PROMETHEUS_RULES_FILE}:/etc/prometheus/rules
     user: "0"
     networks:
       - "monitoring-network"
   loki:
-    image: grafana/loki
-    restart: always
+    image: "grafana/loki"
+    restart: unless-stopped
     container_name: loki
     volumes:
       - type: bind
@@ -28,12 +29,14 @@ services:
     networks:
       - "monitoring-network"
   grafana:
-    image: grafana/grafana
-    restart: always
+    image: "grafana/grafana"
+    restart: unless-stopped
     container_name: grafana
     volumes:
+      - ${BKP_DIR}/grafana.ini:/etc/grafana/grafana.ini
       - ${BKP_DIR}/grafana_data:/var/lib/grafana
-      - ${BKP_DIR}/certs:/certs
+      - ${CERT_FILE}:/etc/grafana/grafana.crt:ro
+      - ${KEY_FILE}:/etc/grafana/grafana.key:ro
     ports:
       - "${PORT_GRAFANA}:3000"
     environment:
@@ -49,7 +52,7 @@ services:
   blackbox:
     image: "prom/blackbox-exporter:latest"
     container_name: blackbox
-    restart: always
+    restart: unless-stopped
     volumes:
       - type: bind
         source: ./blackbox-exporter.yaml
@@ -60,7 +63,7 @@ services:
       - "monitoring-network"
 
   renderer:
-    image: grafana/grafana-image-renderer:latest
+    image: "grafana/grafana-image-renderer:latest"
     container_name: renderer
     ports:
       - 8081

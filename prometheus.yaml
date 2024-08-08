@@ -4,19 +4,19 @@ global:
 
 # Prometheus specific
 scrape_configs:
-  - job_name: prometheus-server 
-    static_configs: 
+  - job_name: 'prometheus-server'
+    static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'node-exporter' 
-    file_sd_configs: 
+  - job_name: 'node-exporter'
+    file_sd_configs:
       - files:
-        - /etc/prometheus/targets.yaml
+        - /etc/prometheus/targets_node_exporter.yaml
 
   - job_name: 'cAdvisor'
-    file_sd_configs: 
+    file_sd_configs:
       - files:
-        - /etc/prometheus/targets.yaml
+        - /etc/prometheus/targets_cadvisor.yaml
 
   - job_name: "website-monitoring-http"
     metrics_path: /probe
